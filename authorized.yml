@@ -1,0 +1,11 @@
+# Apply hole configuration to all nodes, similar to top.sls, and running state.highstate
+#
+- name: Push Authentication keys to ubuntu user
+  hosts: all
+  user: ubuntu 
+  gather_facts: no 
+  sudo: no
+
+  roles:
+      - users
+

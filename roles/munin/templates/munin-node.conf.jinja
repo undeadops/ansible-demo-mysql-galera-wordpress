@@ -1,0 +1,35 @@
+
+log_level 4
+log_file /var/log/munin/munin-node.log
+pid_file /var/run/munin/munin-node.pid
+
+background 1
+setsid 1
+
+user root
+group root
+
+# global_timeout 900
+
+# timeout 60
+
+# Regexps for files to ignore
+ignore_file ~$
+#ignore_file [#~]$  # FIX doesn't work. '#' starts a comment
+ignore_file DEADJOE$
+ignore_file \.bak$
+ignore_file %$
+ignore_file \.dpkg-(tmp|new|old|dist)$
+ignore_file \.rpm(save|new)$
+ignore_file \.pod$
+
+#host_name localhost.localdomain
+
+allow {{ munin_master_ip }}
+
+# Which address to bind to;
+host {{ ansible_eth0['ipv4']['address'] }}
+# host 127.0.0.1
+
+# And which port
+port 4949

@@ -1,0 +1,21 @@
+# Inventory file
+[webservers]
+test-web01  ansible_ssh_user=ubuntu
+test-web02  ansible_ssh_user=ubuntu
+test-web03  ansible_ssh_user=ubuntu
+
+[lbservers]
+test-lb     ansible_ssh_user=ubuntu
+
+[prodservers:children]
+webservers
+lbservers
+
+[dbservers:children]
+webservers
+
+[prodservers:vars]
+munin_master=False
+
+[master]
+test-master ansible_ssh_user=ubuntu  munin_master=True

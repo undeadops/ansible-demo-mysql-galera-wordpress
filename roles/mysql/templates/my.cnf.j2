@@ -1,0 +1,114 @@
+## Managed By Ansible - DO NOT EDIT ##
+# {{ ansible_managed }}
+
+[mysql]
+
+# CLIENT #
+port                           = {{ port }} # 3306
+socket                         = /var/run/mysqld/mysqld.sock
+
+[mysqld]
+
+{% if mysql_clustering %}
+# Clustering
+wsrep_provider                 = /usr/lib/galera/libgalera_smm.so 
+#wsrep_cluster_address          = "gcomm://{% for host in groups['dbservers'] %}{{ hostvars[host].ansible_eth0['ipv4']['address'] }}:4567,{% endfor %}?pc.wait_prim=no"
+#wsrep_provider_options         = "pc.ignore_sb = no;ist.recv_addr={{ ansible_eth0['ipv4']['address'] }};gmcast.listen_addr=tcp://{{ ansible_eth0['ipv4']['address'] }}:4567;gcache.size=1G"
+
+binlog_format                  = ROW
+innodb_autoinc_lock_mode       = 2
+innodb_doublewrite             = 1
+
+wsrep_on                       = ON
+
+#wsrep_provider          = /usr/lib/libgalera_smm.so
+wsrep_slave_threads     = 4
+wsrep_sst_method        = rsync
+#wsrep_sst_auth          = {{ galera_conf['dbusers']['xtrabackup']['username'] }}:{{ galera_conf['dbusers']['xtrabackup']['password'] }}
+wsrep_cluster_name      = wordpress-cluster
+
+{# list of cluster members #}
+{% set cluster_members = [] -%}
+
+{# flag to bootstrap #}
+{% set bootstrap_cluster = 0 -%}
+
+{# if this is the first node AND bootstrap #}
+{%- if groups['dbservers'].index(inventory_hostname) == 0 and "bootstrap" in bootstrap_check.stdout_lines[0] %}
+  {%- set bootstrap_cluster = 1 %}
+{% endif -%}
+
+{%- if not bootstrap_cluster %}
+  {%- for node in groups['dbservers'] %}
+    {%- if hostvars[node].ansible_default_ipv4.address !=  ansible_eth0.ipv4.address %}
+      {%- set _ = cluster_members.append(hostvars[node].ansible_default_ipv4.address) -%}
+    {% endif -%}
+  {% endfor -%}
+{% endif -%}
+wsrep_cluster_address   = gcomm://{{ ",".join(cluster_members) }}
+wsrep_node_name         = {{ ansible_eth0.ipv4.address }}
+wsrep_provider_options  = gcache.size=2G;
+
+{% endif %}
+
+# GENERAL #
+user                           = mysql
+default-storage-engine         = InnoDB
+socket                         = /var/run/mysqld/mysqld.sock
+pid-file                       = /var/lib/mysql/mysql.pid
+
+collation-server               = utf8_general_ci
+init-connect                   = 'SET NAMES utf8'
+character-set-server           = utf8
+
+open_files_limit               = 204800
+
+# MyISAM #
+key-buffer-size                = {{ key_buffer }}  # 16M
+myisam-recover                 = FORCE,BACKUP
+
+# SAFETY #
+max-allowed-packet             = {{ max_allowed_packet }}  # 16M 
+max-connect-errors             = 1000000
+skip_name_resolve
+sysdate-is-now                 = 1
+innodb                 = FORCE
+innodb-strict-mode             = 0
+innodb_lock_wait_timeout       = 240 
+# DATA STORAGE #
+datadir                        = {{ data_dir }}  # /var/lib/mysql/
+
+# BINARY LOGGING #
+log-bin                        = {{ log_bin }} # /var/lib/mysql/mysql-bin
+expire-logs-days               = {{ expire_logs_days }} # 14 
+sync-binlog                    = 1
+
+# CACHES AND LIMITS #
+tmp-table-size                 = {{ tmp_table_size }} # 32M
+max-heap-table-size            = {{ max_heap_table_size }} # 32M
+query-cache-type               = 0
+query-cache-size               = 0
+max-connections                = {{ max_connections }} # 500
+thread-cache-size              = {{ thread_cache_size }} # 50
+open-files-limit               = 65535
+table-definition-cache         = 4096
+table-open-cache               = {{ table_open_cache }} # 100
+
+# INNODB #
+innodb-flush-method            = O_DIRECT
+innodb-log-files-in-group      = 2
+innodb-log-file-size           = {{ innodb_log_file_size }} # 512M
+innodb-flush-log-at-trx-commit = 1
+innodb-file-per-table          = {{ innodb_file_per_table }} # 1
+innodb-buffer-pool-size        = {{ innodb_buffer_pool_size }} # 1G
+
+collation-server = utf8_general_ci
+init-connect='SET NAMES utf8'
+character-set-server = utf8
+
+
+# LOGGING #
+log-error                      = /var/log/mysql/mysql-error.log
+log-queries-not-using-indexes  = {{ log_queries_not_using_indexes }} # 0 (0|1 - No|Yes)
+slow-query-log                 = {{ slow_query_log }} # 0 (0|1 - Disabled|Enabled)
+slow-query-log-file            = {{ slow_query_log_file }} # /var/log/mysql/mysql-slow.log

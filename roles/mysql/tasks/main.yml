@@ -1,0 +1,48 @@
+---
+- name: Install MariaDB Key
+  apt_key: keyserver=hkp://keyserver.ubuntu.com:80 id=0xcbcb082a1bb943db state=present
+
+- name: Add MariaDB 10.1 Repo
+  apt_repository: repo='deb http://mirrors.syringanetworks.net/mariadb/repo/10.1/ubuntu {{ ansible_distribution_release }} main' state=present
+
+- name: Update apt cache
+  apt: update_cache=yes
+
+- name: Install MariaDB database server
+  apt: pkg={{item}}
+  with_items: 
+      - python-mysqldb
+      - mariadb-server
+      - mariadb-client 
+
+- name: Disable AppArmor for Mysql binary
+  file: src=/etc/apparmor.d/usr.sbin.mysqld dest=/etc/apparmor.d/disable/usr.sbin/mysqld
+  notify:
+    - restart apparmor
+
+- name: Write MySQL Server Configuration
+  template: src=my.cnf.j2 dest=/etc/mysql/my.cnf owner=root mode=0644
+  
+- name: check to determine if galera is aready installed
+  action: shell test -d /etc/mysql && echo "installed" || echo "bootstrap"
+  register: bootstrap_check 
+
+- name: Update MySQL root password
+  mysql_user: name=root host={{ item }} password={{ root_password }} login_user=root login_password={{ root_password }}
+  with_items:
+      - "{{ ansible_hostname }}"
+      - 127.0.0.1
+      - localhost
+
+- name: Copy .my.cnf file into the root home folder
+  template: src=root-my-cnf.j2 dest=/root/.my.cnf owner=root mode=0600
+
+- name: Remove test database
+  mysql_db: name=test state=absent
+
+- name: Create fnv1a_64
+  shell: /usr/bin/mysql -e "CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'" && touch /var/log/libfnv1a_udf.so.done creates=/var/log/libfnv1a_udf.so.done
+
+- name: Create fnv_64
+  shell: /usr/bin/mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'" && touch /var/log/libfnv_udf.so.done creates=/var/log/libfnv_udf.so.done
+

@@ -1,0 +1,14 @@
+---
+
+- name: Install commonly used packages
+  apt: pkg={{ item }} state=present
+  with_items:
+      - htop
+      - screen
+      - zsh
+      - vim
+      - iftop
+
+- name: Ansible Managed MOTD
+  copy: src=01-AnsibleManaged dest=/etc/update-motd.d/01-AnsibleManaged mode=0755 owner=root group=root
+

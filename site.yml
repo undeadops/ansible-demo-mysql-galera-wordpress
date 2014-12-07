@@ -1,0 +1,12 @@
+# Apply hole configuration to all nodes, similar to top.sls, and running state.highstate
+#
+- name: apply common configuration to all nodes
+  hosts: all
+  user: ubuntu 
+  gather_facts: yes
+  sudo: yes 
+  vars:
+    munin_master_ip: 10.18.90.40
+  roles:
+    - common
+    - munin
